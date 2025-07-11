@@ -19,9 +19,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        System.out.println("🔌 WebSocket 연결 시도됨");
+        System.out.println("URI: " + session.getUri());
+
         String token = extractToken(session);
+        System.out.println("받은 토큰: " + token);
 
         if (token == null || !jwtUtil.isTokenValid(token)) {
+            System.out.println("❌ 토큰 인증 실패");
             session.sendMessage(new TextMessage("인증 실패. 연결 종료됨."));
             session.close();
             return;
