@@ -2,7 +2,7 @@ package com.cnwv.game_server.controller;
 
 import com.cnwv.game_server.dto.*;
 import com.cnwv.game_server.jwt.JwtUtil;
-import com.cnwv.game_server.model.User;
+import com.cnwv.game_server.Entity.User;
 import com.cnwv.game_server.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

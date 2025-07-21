@@ -14,8 +14,6 @@ import java.util.function.Consumer;
 public class RedisSubscriber implements MessageListener {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisSubscriber.class);
-
-    // 외부에서 메시지를 전달받아 처리할 핸들러를 설정
     private static Consumer<String> messageHandler;
 
     public static void setMessageHandler(Consumer<String> handler) {

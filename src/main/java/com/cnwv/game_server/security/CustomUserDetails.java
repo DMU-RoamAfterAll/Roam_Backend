@@ -1,6 +1,6 @@
 package com.cnwv.game_server.security;
 
-import com.cnwv.game_server.model.User;
+import com.cnwv.game_server.Entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
