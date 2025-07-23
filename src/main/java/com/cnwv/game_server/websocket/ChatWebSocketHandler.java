@@ -82,6 +82,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
+        if (content.length() < 1){
+            session.sendMessage(new TextMessage("❌ 공백의 메시지는 전송되지 않습니다."));
+            return;
+        }
+
         if (containsForbiddenWords(content)) {
             session.sendMessage(new TextMessage("❌ 부적절한 단어가 포함되어 전송되지 않았습니다."));
             return;
