@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface FriendRepository extends JpaRepository<Friend, Long> {
 
@@ -20,6 +22,15 @@ public interface FriendRepository extends JpaRepository<Friend, Long> {
             "(f.user.id = :idA AND f.friend.id = :idB) OR " +
             "(f.user.id = :idB AND f.friend.id = :idA)")
     boolean isFriendById(Long idA, Long idB);
+
+    @Query("SELECT CASE " +
+            "WHEN f.user.username = :username THEN f.friend.username " +
+            "ELSE f.user.username END " +
+            "FROM Friend f " +
+            "WHERE (f.user.username = :username OR f.friend.username = :username) " +
+            "AND f.status = 'ACCEPTED'")
+    List<String> findAllFriendsByUsername(@Param("username") String username);
+
 
 }
 

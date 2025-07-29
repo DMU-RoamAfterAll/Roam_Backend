@@ -93,8 +93,16 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
 
         String channel = getPrivateChannel(sender, target);
-        Map<String, String> msg = Map.of("type", "chat", "sender", sender, "message", content);
-        redisService.publishMessage(channel, objectMapper.writeValueAsString(msg));
+        long timestamp = System.currentTimeMillis();
+
+        Map<String, Object> msg = new HashMap<>();
+        msg.put("type", "chat");
+        msg.put("sender", sender);
+        msg.put("message", content);
+        msg.put("timestamp", timestamp);
+
+        String jsonMsg = objectMapper.writeValueAsString(msg);
+        redisService.publishMessage(channel, jsonMsg);
     }
 
     private boolean containsForbiddenWords(String content) {
