@@ -1,0 +1,48 @@
+package com.cnwv.game_server.controller;
+
+import com.cnwv.game_server.Entity.UserChoice;
+import com.cnwv.game_server.service.UserChoiceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/choices")
+@Tag(name = "User Choice API", description = "선택지 플래그 삽입/조회 API")
+public class UserChoiceController {
+
+    private final UserChoiceService choiceService;
+
+    @PostMapping
+    @Operation(summary = "선택지 설정", description = "플래그(선택지)를 true 또는 false로 설정합니다.")
+    public ResponseEntity<?> setChoice(
+            @RequestParam String username,
+            @RequestParam String choiceCode,
+            @RequestParam boolean condition
+    ) {
+        boolean success = choiceService.setChoice(username, choiceCode, condition);
+        return success ? ResponseEntity.ok("✅ 선택지 설정 완료") : ResponseEntity.badRequest().body("❌ 실패");
+    }
+
+    @GetMapping
+    @Operation(summary = "전체 선택지 조회", description = "해당 사용자의 모든 선택지를 조회합니다.")
+    public ResponseEntity<List<UserChoice>> getChoices(@RequestParam String username) {
+        return ResponseEntity.ok(choiceService.getChoices(username));
+    }
+
+    @GetMapping("/condition")
+    @Operation(summary = "특정 선택지 상태 조회", description = "특정 choiceCode의 condition 값을 반환합니다.")
+    public ResponseEntity<?> getCondition(
+            @RequestParam String username,
+            @RequestParam String choiceCode
+    ) {
+        Boolean result = choiceService.getCondition(username, choiceCode);
+        return (result != null) ? ResponseEntity.ok(Map.of("condition", result)) : ResponseEntity.badRequest().body("❌ 존재하지 않음");
+    }
+}

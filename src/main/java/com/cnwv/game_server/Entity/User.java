@@ -24,7 +24,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100) // 기존 255 → 100으로 수정
     private String nickname;
 
     @Column(name = "birth_date", nullable = false)
@@ -38,4 +38,7 @@ public class User {
 
     @Column(length = 500)
     private String refreshToken;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private Inventory inventory;
 }
