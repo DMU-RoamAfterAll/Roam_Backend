@@ -14,20 +14,24 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/choices")
-@Tag(name = "User Choice API", description = "선택지 플래그 삽입/조회 API")
+@Tag(name = "User Choice API", description = "선택지 플래그 삽입/조회 API (업서트 + 동일값 무시)")
 public class UserChoiceController {
 
     private final UserChoiceService choiceService;
 
-    @PostMapping
-    @Operation(summary = "선택지 설정", description = "플래그(선택지)를 true 또는 false로 설정합니다.")
+    @PutMapping
+    @Operation(
+            summary = "선택지 설정(업서트)",
+            description = "존재하지 않으면 삽입, 존재하면 수정. 동일 값이면 변경 없이 성공 처리합니다."
+    )
     public ResponseEntity<?> setChoice(
             @RequestParam String username,
             @RequestParam String choiceCode,
             @RequestParam boolean condition
     ) {
         boolean success = choiceService.setChoice(username, choiceCode, condition);
-        return success ? ResponseEntity.ok("✅ 선택지 설정 완료") : ResponseEntity.badRequest().body("❌ 실패");
+        return success ? ResponseEntity.ok("✅ 선택지 설정 완료")
+                : ResponseEntity.badRequest().body("❌ 실패");
     }
 
     @GetMapping
@@ -43,6 +47,8 @@ public class UserChoiceController {
             @RequestParam String choiceCode
     ) {
         Boolean result = choiceService.getCondition(username, choiceCode);
-        return (result != null) ? ResponseEntity.ok(Map.of("condition", result)) : ResponseEntity.badRequest().body("❌ 존재하지 않음");
+        return (result != null)
+                ? ResponseEntity.ok(Map.of("condition", result))
+                : ResponseEntity.badRequest().body("❌ 존재하지 않음");
     }
 }

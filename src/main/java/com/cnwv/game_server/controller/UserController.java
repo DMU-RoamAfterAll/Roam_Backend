@@ -3,7 +3,9 @@ package com.cnwv.game_server.controller;
 import com.cnwv.game_server.dto.*;
 import com.cnwv.game_server.jwt.JwtUtil;
 import com.cnwv.game_server.Entity.User;
+import com.cnwv.game_server.Entity.Inventory;
 import com.cnwv.game_server.repository.UserRepository;
+import com.cnwv.game_server.repository.InventoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +26,7 @@ import java.time.LocalDateTime;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final InventoryRepository inventoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
@@ -30,6 +34,7 @@ public class UserController {
     @Operation(summary = "회원가입", description = "가입 정보를 받아서 회원 등록")
     @ApiResponse(responseCode = "200", description = "회원가입 성공")
     @ApiResponse(responseCode = "400", description = "잘못된 요청 형식")
+    @Transactional
     public String register(@RequestBody RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 아이디입니다.");
@@ -41,8 +46,19 @@ public class UserController {
         user.setNickname(request.getNickname());
         user.setBirthDate(LocalDate.parse(request.getBirthDate()));
         user.setEmail(request.getEmail());
-        user.setCreatedAt(LocalDateTime.now()); // 생략 가능, 필드에 기본값 있음
+        user.setCreatedAt(LocalDateTime.now());
+
+        // ✅ 사용자 저장
         userRepository.save(user);
+
+        // ✅ 인벤토리 자동 생성 (users:inventories = 1:1)
+        Inventory inv = new Inventory();
+        inv.setUser(user);
+        inventoryRepository.save(inv);
+
+        // 양방향이면 user.setInventory(inv)까지 설정 (선택)
+        user.setInventory(inv);
+
         return "회원가입 성공";
     }
 
@@ -95,11 +111,9 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token이 유효하지 않음");
         }
 
-        // 새로운 Access/Refresh Token 생성
         String newAccessToken = jwtUtil.generateAccessToken(username);
         String newRefreshToken = jwtUtil.generateRefreshToken(username);
 
-        // 새로운 Refresh Token 저장
         user.setRefreshToken(newRefreshToken);
         userRepository.save(user);
 
@@ -136,5 +150,4 @@ public class UserController {
         userRepository.save(user);
         return "로그아웃 완료";
     }
-
 }
