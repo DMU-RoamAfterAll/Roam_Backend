@@ -1,6 +1,7 @@
 package com.cnwv.game_server.controller;
 
 import com.cnwv.game_server.Entity.InventoryWeapon;
+import com.cnwv.game_server.dto.InventoryWeaponDto;
 import com.cnwv.game_server.service.InventoryWeaponService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -33,9 +34,17 @@ public class InventoryWeaponController {
     }
 
     @GetMapping
-    @Operation(summary = "무기 목록 조회")
-    public ResponseEntity<List<InventoryWeapon>> getWeapons(@RequestParam String username) {
-        return ResponseEntity.ok(weaponService.getWeapons(username));
+    @Operation(summary = "무기 목록 조회 (DTO 응답)", description = "순환참조를 피하기 위해 DTO로 응답합니다.")
+    public ResponseEntity<List<InventoryWeaponDto>> getWeapons(@RequestParam String username) {
+        List<InventoryWeapon> list = weaponService.getWeapons(username);
+        List<InventoryWeaponDto> dtos = list.stream()
+                .map(w -> new InventoryWeaponDto(
+                        w.getId().getInventoryId(),
+                        w.getId().getWeaponCode(),
+                        w.getAmount()
+                ))
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @PutMapping

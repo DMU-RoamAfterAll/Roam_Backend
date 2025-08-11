@@ -1,5 +1,6 @@
 package com.cnwv.game_server.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,10 +23,12 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
+    // 민감정보는 응답에 노출되지 않도록 반드시 숨김
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, length = 100) // 기존 255 → 100으로 수정
+    @Column(nullable = false, length = 100)
     private String nickname;
 
     @Column(name = "birth_date", nullable = false)
@@ -36,9 +40,12 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @JsonIgnore
     @Column(length = 500)
     private String refreshToken;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    // 순환참조/과도한 로딩 방지: LAZY + JsonIgnore
+    @JsonIgnore
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Inventory inventory;
 }
