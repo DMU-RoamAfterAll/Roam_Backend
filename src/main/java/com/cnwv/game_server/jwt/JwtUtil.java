@@ -21,6 +21,9 @@ public class JwtUtil {
     @Value("${jwt.refreshTokenExpiration}")
     private long refreshTokenExpiration;
 
+    // 서버/클라이언트 시계 오차 허용(초)
+    private static final long CLOCK_SKEW_SECONDS = 120L; // 2분
+
     public JwtUtil(@Value("${jwt.secret}") String secret) {
         this.SECRET_KEY = Keys.hmacShaKeyFor(java.util.Base64.getDecoder().decode(secret));
     }
@@ -59,6 +62,7 @@ public class JwtUtil {
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(SECRET_KEY)
+                .setAllowedClockSkewSeconds(CLOCK_SKEW_SECONDS) // ✅ 시계 오차 허용
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

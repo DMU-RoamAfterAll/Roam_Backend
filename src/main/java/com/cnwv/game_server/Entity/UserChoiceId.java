@@ -1,16 +1,16 @@
 package com.cnwv.game_server.Entity;
 
 import jakarta.persistence.Embeddable;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
-@Getter
-@Setter
 @Embeddable
-@EqualsAndHashCode
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserChoiceId implements Serializable {
     private Long userId;
     private String choiceCode;
