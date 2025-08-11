@@ -1,5 +1,6 @@
 package com.cnwv.game_server.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,9 +22,10 @@ public class UserChoice {
     @MapsId("userId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore // 응답 직렬화 시 User 상세 노출 방지
     private User user;
 
-    // 예약어 매핑: 반드시 백틱으로 감싸서 사용
+    // 예약어 매핑: 백틱 필수
     @Column(name = "`condition`", nullable = false)
     private boolean condition;
 
@@ -31,8 +33,5 @@ public class UserChoice {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // 편의 메서드 (선택)
-    public boolean isCondition() {
-        return condition;
-    }
+    public boolean isCondition() { return condition; }
 }
