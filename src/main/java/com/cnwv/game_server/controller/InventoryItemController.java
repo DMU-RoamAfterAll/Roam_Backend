@@ -1,7 +1,7 @@
 package com.cnwv.game_server.controller;
 
 import com.cnwv.game_server.Entity.InventoryItem;
-import com.cnwv.game_server.dto.InventoryItemDto;
+import com.cnwv.game_server.dto.ItemDataResponse;
 import com.cnwv.game_server.service.InventoryItemService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,12 +34,14 @@ public class InventoryItemController {
     }
 
     @GetMapping
-    @Operation(summary = "아이템 목록 조회 (DTO 응답)", description = "순환참조를 피하기 위해 DTO로 응답합니다.")
-    public ResponseEntity<List<InventoryItemDto>> getItems(@RequestParam String username) {
+    @Operation(
+            summary = "아이템 목록 조회",
+            description = "inventoryId / createdAt 등 부가정보 제외하고 { itemCode, amount }만 반환"
+    )
+    public ResponseEntity<List<ItemDataResponse>> getItems(@RequestParam String username) {
         List<InventoryItem> list = itemService.getItems(username);
-        List<InventoryItemDto> dtos = list.stream()
-                .map(i -> new InventoryItemDto(
-                        i.getId().getInventoryId(),
+        List<ItemDataResponse> dtos = list.stream()
+                .map(i -> new ItemDataResponse(
                         i.getId().getItemCode(),
                         i.getAmount()
                 ))

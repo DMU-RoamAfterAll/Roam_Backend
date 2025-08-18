@@ -6,14 +6,12 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class InventoryItemDto {
+public class ItemDataResponse {
 
-    @Schema(description = "인벤토리 ID")
-    private Long inventoryId;
-
-    @Schema(description = "아이템 코드")
+    @Schema(description = "아이템 코드명")
     private String itemCode;
 
     @Schema(description = "수량")
     private int amount;
+
 }

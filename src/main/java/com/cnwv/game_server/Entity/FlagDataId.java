@@ -11,7 +11,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserChoiceId implements Serializable {
+public class FlagDataId implements Serializable {
     private Long userId;
-    private String choiceCode;
+    private String flagCode;
 }

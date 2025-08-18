@@ -10,14 +10,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_choices")
+@Table(name = "flag_data")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UserChoice {
+public class FlagData {
 
     @EmbeddedId
-    private UserChoiceId id;
+    private FlagDataId id;
 
     @MapsId("userId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -27,11 +27,11 @@ public class UserChoice {
 
     // 예약어 매핑: 백틱 필수
     @Column(name = "`condition`", nullable = false)
-    private boolean condition;
+    private boolean flagState; // =
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public boolean isCondition() { return condition; }
+    public boolean isCondition() { return flagState; }
 }

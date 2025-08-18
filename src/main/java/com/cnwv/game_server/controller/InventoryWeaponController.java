@@ -1,7 +1,7 @@
 package com.cnwv.game_server.controller;
 
 import com.cnwv.game_server.Entity.InventoryWeapon;
-import com.cnwv.game_server.dto.InventoryWeaponDto;
+import com.cnwv.game_server.dto.WeaponDataResponse;
 import com.cnwv.game_server.service.InventoryWeaponService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,12 +34,14 @@ public class InventoryWeaponController {
     }
 
     @GetMapping
-    @Operation(summary = "무기 목록 조회 (DTO 응답)", description = "순환참조를 피하기 위해 DTO로 응답합니다.")
-    public ResponseEntity<List<InventoryWeaponDto>> getWeapons(@RequestParam String username) {
+    @Operation(
+            summary = "무기 목록 조회 (Unity 포맷)",
+            description = "inventoryId / createdAt 등 부가정보 제외하고 { weaponCode, amount }만 반환"
+    )
+    public ResponseEntity<List<WeaponDataResponse>> getWeapons(@RequestParam String username) {
         List<InventoryWeapon> list = weaponService.getWeapons(username);
-        List<InventoryWeaponDto> dtos = list.stream()
-                .map(w -> new InventoryWeaponDto(
-                        w.getId().getInventoryId(),
+        List<WeaponDataResponse> dtos = list.stream()
+                .map(w -> new WeaponDataResponse(
                         w.getId().getWeaponCode(),
                         w.getAmount()
                 ))
