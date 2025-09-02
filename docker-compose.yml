@@ -1,0 +1,31 @@
+# docker-compose.yml (프로젝트 루트, Dockerfile 있는 곳)
+version: "3.9"
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cnwv
+    ports:
+      - "6379:6379"
+    command: ["redis-server","--appendonly","yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+
+  app:
+    image: game-server         # 이미 빌드한 이미지 사용
+    container_name: game_server
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      REDIS_HOST: redis        # ✅ 서비스명으로 접속
+      REDIS_PORT: "6379"
+      # MySQL은 지금 원격(125.176.246.14) 쓰는 중이면 그대로 사용
+      DB_URL: jdbc:mysql://125.176.246.14:3306/cnwvdb?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      DB_USER: cnwv
+      DB_PASS: cnwv
+    ports:
+      - "8080:8080"
