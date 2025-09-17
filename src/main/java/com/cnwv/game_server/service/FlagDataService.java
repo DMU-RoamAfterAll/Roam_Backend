@@ -6,6 +6,7 @@ import com.cnwv.game_server.Entity.User;
 import com.cnwv.game_server.dto.FlagDataResponse;
 import com.cnwv.game_server.repository.FlagDataRepository;
 import com.cnwv.game_server.repository.UserRepository;
+import com.cnwv.game_server.shard.WithUserShard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,14 +15,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@WithUserShard(userIdParam = "username") // ✅ username 기반으로 샤드 라우팅
 public class FlagDataService {
 
     private final FlagDataRepository flagRepository;
     private final UserRepository userRepository;
 
-    /**
-     * 없으면 INSERT, 있으면 UPDATE. 동일 값이면 NO-OP 처리.
-     */
+    /** 없으면 INSERT, 있으면 UPDATE. 동일 값이면 NO-OP 처리. */
     @Transactional
     public boolean setFlag(String username, String flagCode, boolean flagState) {
         User user = userRepository.findByUsername(username).orElse(null);
@@ -40,8 +40,7 @@ public class FlagDataService {
         } else {
             FlagData existing = existingOpt.get();
             if (existing.isFlagState() == flagState) {
-                // 동일 값이면 아무 것도 하지 않고 성공 처리
-                return true;
+                return true; // 동일 값이면 NO-OP
             }
             existing.setFlagState(flagState);
             flagRepository.save(existing); // UPDATE

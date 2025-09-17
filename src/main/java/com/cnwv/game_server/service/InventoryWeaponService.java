@@ -1,8 +1,10 @@
 package com.cnwv.game_server.service;
 
-import com.cnwv.game_server.Entity.*;
+import com.cnwv.game_server.Entity.InventoryWeapon;
+import com.cnwv.game_server.Entity.InventoryWeaponId;
 import com.cnwv.game_server.repository.InventoryWeaponRepository;
 import com.cnwv.game_server.repository.UserRepository;
+import com.cnwv.game_server.shard.WithUserShard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +13,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@WithUserShard(userIdParam = "username") // ✅ username 기반으로 샤드 라우팅
 public class InventoryWeaponService {
 
     private final InventoryWeaponRepository weaponRepository;
