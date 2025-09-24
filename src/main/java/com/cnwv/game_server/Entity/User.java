@@ -41,7 +41,7 @@ public class User {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @JsonIgnore
-    @Column(length = 500)
+    @Column(name = "refresh_token", length = 500)
     private String refreshToken;
 
     // 순환참조/과도한 로딩 방지: LAZY + JsonIgnore
