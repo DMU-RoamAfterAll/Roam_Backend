@@ -26,7 +26,7 @@ public class InventoryItem {
     @JoinColumn(name = "inventory_id", nullable = false)
     private Inventory inventory;
 
-    @Column(nullable = false)
+    @Column(name = "amount",nullable = false)
     private int amount;
 
     @CreationTimestamp

@@ -1,5 +1,6 @@
 package com.cnwv.game_server.Entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -12,6 +13,10 @@ import java.io.Serializable;
 @Embeddable
 @EqualsAndHashCode
 public class InventoryWeaponId implements Serializable {
+
+    @Column(name = "inventory_id") // ★ snake_case 매핑
     private Long inventoryId;
+
+    @Column(name = "weapon_code")  // ★ snake_case 매핑
     private String weaponCode;
 }
