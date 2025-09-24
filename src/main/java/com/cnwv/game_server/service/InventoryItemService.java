@@ -1,7 +1,6 @@
 package com.cnwv.game_server.service;
 
-import com.cnwv.game_server.Entity.InventoryItem;
-import com.cnwv.game_server.Entity.InventoryItemId;
+import com.cnwv.game_server.Entity.*;
 import com.cnwv.game_server.repository.InventoryItemRepository;
 import com.cnwv.game_server.repository.UserRepository;
 import com.cnwv.game_server.shard.WithUserShard;
@@ -13,12 +12,12 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@WithUserShard(userIdParam = "username") // ✅ username 기반으로 샤드 라우팅
 public class InventoryItemService {
 
     private final InventoryItemRepository itemRepository;
     private final UserRepository userRepository;
 
+    @WithUserShard(userIdParam = "username")
     @Transactional
     public boolean insertItem(String username, String itemCode, int amount) {
         if (amount <= 0) return false;
@@ -27,30 +26,19 @@ public class InventoryItemService {
         if (user == null || user.getInventory() == null) return false;
 
         Long invId = user.getInventory().getId();
-        InventoryItemId id = new InventoryItemId();
-        id.setInventoryId(invId);
-        id.setItemCode(itemCode);
-
-        InventoryItem existing = itemRepository.findById(id).orElse(null);
-        if (existing == null) {
-            InventoryItem item = new InventoryItem();
-            item.setId(id);
-            item.setInventory(user.getInventory());
-            item.setAmount(amount);
-            itemRepository.save(item);
-        } else {
-            existing.setAmount(existing.getAmount() + amount); // ✅ 중복 시 수량 증가
-            itemRepository.save(existing);
-        }
+        // 원자적 업서트(증가)
+        itemRepository.upsertIncrease(invId, itemCode, amount);
         return true;
     }
 
+    @WithUserShard(userIdParam = "username")
     public List<InventoryItem> getItems(String username) {
         var user = userRepository.findByUsername(username).orElse(null);
         if (user == null || user.getInventory() == null) return List.of();
         return itemRepository.findByInventoryId(user.getInventory().getId());
     }
 
+    @WithUserShard(userIdParam = "username")
     @Transactional
     public boolean updateItem(String username, String itemCode, int amount) {
         if (amount < 0) return false;
@@ -58,18 +46,12 @@ public class InventoryItemService {
         var user = userRepository.findByUsername(username).orElse(null);
         if (user == null || user.getInventory() == null) return false;
 
-        InventoryItemId id = new InventoryItemId();
-        id.setInventoryId(user.getInventory().getId());
-        id.setItemCode(itemCode);
-
-        InventoryItem item = itemRepository.findById(id).orElse(null);
-        if (item == null) return false;
-
-        item.setAmount(amount); // 절대값 수정
-        itemRepository.save(item);
-        return true;
+        Long invId = user.getInventory().getId();
+        int updated = itemRepository.setAmount(invId, itemCode, amount);
+        return updated > 0;
     }
 
+    @WithUserShard(userIdParam = "username")
     @Transactional
     public boolean deleteItem(String username, String itemCode, int amount) {
         if (amount <= 0) return false;
@@ -77,24 +59,13 @@ public class InventoryItemService {
         var user = userRepository.findByUsername(username).orElse(null);
         if (user == null || user.getInventory() == null) return false;
 
-        InventoryItemId id = new InventoryItemId();
-        id.setInventoryId(user.getInventory().getId());
-        id.setItemCode(itemCode);
+        Long invId = user.getInventory().getId();
 
-        InventoryItem item = itemRepository.findById(id).orElse(null);
-        if (item == null) {
-            // 수량이 없으면 요청 무시
-            return true;
-        }
+        // 1) 차감 (음수 허용 → 이후 0 이하 정리)
+        itemRepository.decrement(invId, itemCode, amount);
+        // 2) 0 이하이면 삭제
+        itemRepository.deleteIfZeroOrLess(invId, itemCode);
 
-        int remain = item.getAmount() - amount;
-        if (remain > 0) {
-            item.setAmount(remain);
-            itemRepository.save(item);
-        } else {
-            // 0 이하가 되면 행 삭제
-            itemRepository.deleteById(id);
-        }
         return true;
     }
 }

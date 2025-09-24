@@ -32,4 +32,9 @@ public class InventoryWeapon {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /** 낙관적 락 버전 */
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
 }
