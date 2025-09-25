@@ -1,11 +1,8 @@
 package com.cnwv.game_server.config;
 
 import com.cnwv.game_server.shard.RoutingDataSource;
-import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,111 +20,79 @@ import java.util.Map;
 @Configuration
 public class DataSourceConfig {
 
-    // ===== 샤드 프로퍼티 (테스트에서 비어 있을 수 있으므로 기본값 허용)
-    @Value("${spring.shard.datasources.s0.url:}")
-    private String s0Url;
-    @Value("${spring.shard.datasources.s0.username:}")
-    private String s0User;
-    @Value("${spring.shard.datasources.s0.password:}")
-    private String s0Pass;
-
-    @Value("${spring.shard.datasources.s1.url:}")
-    private String s1Url;
-    @Value("${spring.shard.datasources.s1.username:}")
-    private String s1User;
-    @Value("${spring.shard.datasources.s1.password:}")
-    private String s1Pass;
-
-    // ===== 단일 DS (샤드 미설정 시 fallback)
-    @Value("${spring.datasource.url}")
-    private String baseUrl;
-    @Value("${spring.datasource.username}")
-    private String baseUser;
-    @Value("${spring.datasource.password}")
-    private String basePass;
-
-    // ✅ HikariDataSource가 아니라 HikariConfig를 빈으로 등록 (검증에 안 걸림)
-    @Bean
-    @ConfigurationProperties("spring.datasource.hikari")
-    public HikariConfig hikariConfig() {
-        return new HikariConfig();
+    /** 샤드별 실제 커넥션 풀(Hikari) — application.properties 의 app.shard.datasources.* 에서 바인딩 */
+    @Bean("dsS0")
+    @ConfigurationProperties("app.shard.datasources.s0")
+    public HikariDataSource dsS0() {
+        // 바인딩되는 키 예:
+        // app.shard.datasources.s0.jdbc-url=...
+        // app.shard.datasources.s0.username=...
+        // app.shard.datasources.s0.password=...
+        // (필요시) app.shard.datasources.s0.maximum-pool-size=...
+        return new HikariDataSource();
     }
 
-    @Bean(name = "routingDataSource")
-    public DataSource routingDataSource(HikariConfig baseCfg) {
-        boolean shardReady =
-                notBlank(s0Url) && notBlank(s0User) && notBlank(s0Pass) &&
-                        notBlank(s1Url) && notBlank(s1User) && notBlank(s1Pass);
-
-        Map<Object, Object> targets = new HashMap<>();
-        RoutingDataSource rds = new RoutingDataSource();
-
-        if (shardReady) {
-            targets.put("s0", buildDs(baseCfg, s0Url, s0User, s0Pass));
-            targets.put("s1", buildDs(baseCfg, s1Url, s1User, s1Pass));
-            rds.setTargetDataSources(targets);
-            rds.setDefaultTargetDataSource(targets.get("s0"));
-        } else {
-            // 테스트/로컬에서 샤드 미설정이면 단일 DS로 동작
-            HikariDataSource single = buildDs(baseCfg, baseUrl, baseUser, basePass);
-            targets.put("s0", single);
-            rds.setTargetDataSources(targets);
-            rds.setDefaultTargetDataSource(single);
-        }
-
-        rds.afterPropertiesSet();
-        return rds;
+    @Bean("dsS1")
+    @ConfigurationProperties("app.shard.datasources.s1")
+    public HikariDataSource dsS1() {
+        return new HikariDataSource();
     }
 
-    private HikariDataSource buildDs(HikariConfig base, String url, String user, String pass) {
-        HikariConfig cfg = new HikariConfig();
-        // 공통 풀 설정 복사 (0 값은 기본값 유지)
-        if (base.getMaximumPoolSize() > 0) cfg.setMaximumPoolSize(base.getMaximumPoolSize());
-        if (base.getMinimumIdle() > 0) cfg.setMinimumIdle(base.getMinimumIdle());
-        if (base.getConnectionTimeout() > 0) cfg.setConnectionTimeout(base.getConnectionTimeout());
-        if (base.getIdleTimeout() > 0) cfg.setIdleTimeout(base.getIdleTimeout());
-        if (base.getMaxLifetime() > 0) cfg.setMaxLifetime(base.getMaxLifetime());
-        if (base.getPoolName() != null) cfg.setPoolName(base.getPoolName());
-
-        cfg.setJdbcUrl(url);
-        cfg.setUsername(user);
-        cfg.setPassword(pass);
-        return new HikariDataSource(cfg);
-    }
-
-    private boolean notBlank(String s) { return s != null && !s.isBlank(); }
-
-    // 전역 기본 DS는 Lazy 프록시 (@Primary)
-    @Bean
+    /**
+     * 애플리케이션이 바라보는 단 하나의 DataSource.
+     * RoutingDataSource -> LazyConnectionDataSourceProxy 순서로 감싸서
+     * 실제 커넥션 픽업이 트랜잭션(커밋 시점) 직전에 일어나게 함.
+     */
+    @Bean(name = "dataSource")
     @Primary
-    public DataSource dataSource(@Qualifier("routingDataSource") DataSource routing) {
+    public DataSource dataSource(
+            @Qualifier("dsS0") DataSource s0,
+            @Qualifier("dsS1") DataSource s1
+    ) {
+        Map<Object, Object> targets = new HashMap<>();
+        targets.put("s0", s0);
+        targets.put("s1", s1);
+
+        RoutingDataSource routing = new RoutingDataSource();
+        routing.setTargetDataSources(targets);
+        routing.setDefaultTargetDataSource(s0); // 오동작 시 메타DB가 아니라 s0으로만 가도록 안전장치
+        routing.afterPropertiesSet();
+
         return new LazyConnectionDataSourceProxy(routing);
     }
 
     @Bean
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(
-            @Qualifier("dataSource") DataSource dataSource) {
+            @Qualifier("dataSource") DataSource dataSource,
+            org.springframework.core.env.Environment env) {
+
         var vendor = new HibernateJpaVendorAdapter();
         vendor.setGenerateDdl(false);
         vendor.setShowSql(true);
+
+        var props = new java.util.HashMap<String, Object>();
+        // application.properties 값을 반영 (없으면 기본값)
+        props.put("hibernate.hbm2ddl.auto",
+                env.getProperty("spring.jpa.hibernate.ddl-auto", "none"));
+        props.put("hibernate.show_sql",
+                env.getProperty("spring.jpa.show-sql", "false"));
+        // 너 설정과 일치: MariaDBDialect
+        var dialect = env.getProperty("spring.jpa.properties.hibernate.dialect");
+        if (dialect != null && !dialect.isBlank()) {
+            props.put("hibernate.dialect", dialect);
+        }
 
         var emf = new LocalContainerEntityManagerFactoryBean();
         emf.setDataSource(dataSource);
         emf.setPackagesToScan("com.cnwv.game_server");
         emf.setJpaVendorAdapter(vendor);
+        emf.setJpaPropertyMap(props);
         return emf;
     }
 
     @Bean
     @Primary
-    public PlatformTransactionManager transactionManager(
-            LocalContainerEntityManagerFactoryBean emfBean) {
+    public PlatformTransactionManager transactionManager(LocalContainerEntityManagerFactoryBean emfBean) {
         return new JpaTransactionManager(emfBean.getObject());
-    }
-
-    @Bean
-    public HibernatePropertiesCustomizer hibernatePropertiesCustomizer(
-            @Qualifier("dataSource") DataSource dataSource) {
-        return props -> props.put("hibernate.hikari.dataSource", dataSource);
     }
 }
