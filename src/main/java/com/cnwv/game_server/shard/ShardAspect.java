@@ -1,16 +1,19 @@
 package com.cnwv.game_server.shard;
 
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.reflect.CodeSignature;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.MDC;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 
 @Aspect
 @Configuration
 @Order(0) // 트랜잭션보다 먼저
+@Slf4j     // ★ 로그 쓰려면
 public class ShardAspect {
 
     private final ShardResolver resolver = new ShardResolver(2); // s0, s1
@@ -39,16 +42,29 @@ public class ShardAspect {
             }
         }
 
+        String shardKey;
         if (userId != null) {
-            ShardContext.set(resolver.fromUserId(userId));
+            shardKey = resolver.fromUserId(userId); // "s0" or "s1"
         } else {
-            ShardContext.set("s0"); // fallback
+            shardKey = "s0"; // fallback
+        }
+
+        // === ★★★ 샤드 컨텍스트 + MDC 주입 ★★★
+        ShardContext.set(shardKey);
+        MDC.put("shard", shardKey);
+        if (userId != null) MDC.put("userId", userId);
+
+        if (log.isDebugEnabled()) {
+            log.debug("[Shard] resolved shard={} (userIdParam='{}', value={})", shardKey, keyName, userId);
         }
 
         try {
             return pjp.proceed();
         } finally {
+            // 정리
             ShardContext.clear();
+            MDC.remove("shard");
+            MDC.remove("userId");
         }
     }
 }

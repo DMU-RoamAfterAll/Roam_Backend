@@ -1,0 +1,40 @@
+<configuration>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="game_server"/>
+    <property name="LOG_PATH" value="/var/log/roam" />
+
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/app-%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>14</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp />
+                <pattern>
+                    <pattern>
+                        {
+                        "level": "%level",
+                        "logger": "%logger",
+                        "thread": "%thread",
+                        "message": "%message",
+                        "app": "${APP_NAME}",
+                        "env": "${SPRING_PROFILES_ACTIVE:-default}",
+                        "userId": "%mdc{userId}",
+                        "shard": "%mdc{shard}",
+                        "uri": "%mdc{uri}",
+                        "method": "%mdc{method}"
+                        }
+                    </pattern>
+                </pattern>
+                <arguments />
+                <stackTrace />
+                <mdc />
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="JSON_FILE"/>
+    </root>
+</configuration>

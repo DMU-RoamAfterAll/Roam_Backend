@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -49,24 +50,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            var userDetails = userDetailsService.loadUserByUsername(username);
+        try {
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                var userDetails = userDetailsService.loadUserByUsername(username);
 
-            boolean valid = jwtUtil.isTokenValid(token);
-            log.debug("[JWT] isTokenValid={} for user='{}' {} {}", valid, username, method, uri);
+                boolean valid = jwtUtil.isTokenValid(token);
+                log.debug("[JWT] isTokenValid={} for user='{}' {} {}", valid, username, method, uri);
 
-            if (valid) {
-                var authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-                log.debug("[JWT] setAuthentication OK for user='{}' {} {}", username, method, uri);
-            } else {
-                log.warn("[JWT] token invalid (signature/exp) for user='{}' {} {}", username, method, uri);
+                if (valid) {
+                    var authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("[JWT] setAuthentication OK for user='{}' {} {}", username, method, uri);
+
+                    // === ★★★ MDC 주입 (로그에 쓰일 컨텍스트) ★★★
+                    MDC.put("username", username);
+                    // userId를 토큰에서 바로 뽑을 수 있으면 같이 넣기 (없으면 생략)
+                    try {
+                        Long userId = jwtUtil.extractUserId(token); // JwtUtil에 이 메서드가 없다면 제거 또는 구현
+                        if (userId != null) {
+                            MDC.put("userId", String.valueOf(userId));
+                        }
+                    } catch (Exception ignore) {
+                        // userId 클레임이 없는 토큰이면 무시
+                    }
+                } else {
+                    log.warn("[JWT] token invalid (signature/exp) for user='{}' {} {}", username, method, uri);
+                }
             }
-        }
 
-        filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response);
+        } finally {
+            // ⚠️ RequestLoggingFilter 등에서 clear()를 책임진다면 아래 remove는 생략 가능
+            // 여기서 지워두면 스레드 재사용에 따른 누수 방지에 도움이 됨
+            MDC.remove("username");
+            MDC.remove("userId");
+        }
     }
 }
