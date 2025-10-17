@@ -1,6 +1,8 @@
 package com.cnwv.game_server.jwt;
 
 import com.cnwv.game_server.security.UserDetailsServiceImpl;
+import com.cnwv.game_server.shard.ShardContext;
+import com.cnwv.game_server.shard.ShardResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
+    private final ShardResolver shardResolver = new ShardResolver(2); // s0, s1 (필요 시 @Bean 주입으로 바꿔도 됨)
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -51,7 +54,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 2) 실제 인증 세팅
+        // 2) 샤드 컨텍스트를 먼저 세팅 (UserDetailsService가 올바른 샤드로 조회하도록)
+        String shardKey = (username != null) ? shardResolver.fromUserId(username) : "s0";
+        ShardContext.set(shardKey);
+        MDC.put("shard", shardKey);
+        MDC.put("username", String.valueOf(username));
+
         try {
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 // DB 조회(존재 안 하면 UsernameNotFoundException)
@@ -68,10 +76,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                     log.debug("[JWT] setAuthentication OK for user='{}' {} {}", username, method, uri);
 
-                    // MDC(선택)
-                    MDC.put("username", username);
+                    // MDC(선택) — userId 클레임이 있으면 추가
                     try {
-                        Long userId = jwtUtil.extractUserId(token); // 있으면 사용
+                        Long userId = jwtUtil.extractUserId(token);
                         if (userId != null) MDC.put("userId", String.valueOf(userId));
                     } catch (Exception ignore) {}
                 } else {
@@ -81,7 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
 
         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-            // ★ 핵심: 여기서 500 방지
+            // 500 방지
             log.warn("[JWT] user not found for username='{}' {} {}", username, method, uri);
             chain.doFilter(request, response);  // 인증 없이 계속 → 보안 규칙에 따라 401/403
         } catch (Exception e) {
@@ -89,6 +96,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("[JWT] unexpected error {} {}: {}", method, uri, e.toString());
             chain.doFilter(request, response);
         } finally {
+            // 필터 레벨에서 넣은 컨텍스트/MDC는 여기서 반드시 정리 (스레드 재사용 방지)
+            ShardContext.clear();
+            MDC.remove("shard");
             MDC.remove("username");
             MDC.remove("userId");
         }
