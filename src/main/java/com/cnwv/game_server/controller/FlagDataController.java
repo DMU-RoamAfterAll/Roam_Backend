@@ -79,9 +79,9 @@ public class FlagDataController {
         limit = Math.max(1, Math.min(limit, 200));
         offset = Math.max(0, offset);
 
-        String cond = (flagState == null) ? "" : " AND f.`condition` = ? ";
+        String cond = (flagState == null) ? "" : " AND f.`flag_state` = ? ";
         String base =
-                "SELECT ? AS shard, f.user_id, u.username, f.flag_code, f.`condition` AS flag_state, f.created_at " +
+                "SELECT ? AS shard, f.user_id, u.username, f.flag_code, f.`flag_state` AS flag_state, f.created_at " +
                         "  FROM %s.flag_data f " +
                         "  JOIN %s.users u ON u.id = f.user_id " +
                         " WHERE f.flag_code = ? " + cond;
@@ -122,11 +122,11 @@ public class FlagDataController {
                 "SELECT SUM(CASE WHEN flag_state = 1 THEN c ELSE 0 END) AS true_count, " +
                         "       SUM(CASE WHEN flag_state = 0 THEN c ELSE 0 END) AS false_count " +
                         "FROM ( " +
-                        "  SELECT f.`condition` AS flag_state, COUNT(*) AS c " +
-                        "    FROM cnwvdb_s0.flag_data f WHERE f.flag_code = ? GROUP BY f.`condition` " +
+                        "  SELECT f.`flag_state` AS flag_state, COUNT(*) AS c " +
+                        "    FROM cnwvdb_s0.flag_data f WHERE f.flag_code = ? GROUP BY f.`flag_state` " +
                         "  UNION ALL " +
-                        "  SELECT f.`condition` AS flag_state, COUNT(*) AS c " +
-                        "    FROM cnwvdb_s1.flag_data f WHERE f.flag_code = ? GROUP BY f.`condition` " +
+                        "  SELECT f.`flag_state` AS flag_state, COUNT(*) AS c " +
+                        "    FROM cnwvdb_s1.flag_data f WHERE f.flag_code = ? GROUP BY f.`flag_state` " +
                         ") t";
 
         return ResponseEntity.ok(jdbcTemplate.queryForMap(sql, flagCode, flagCode));
