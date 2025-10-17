@@ -26,7 +26,7 @@ public class FlagData {
     private User user;
 
     // 예약어 매핑: 백틱 필수
-    @Column(name = "`condition`", nullable = false)
+    @Column(name = "`flag_State`", nullable = false)
     private boolean flagState; // =
 
     @CreationTimestamp
