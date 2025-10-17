@@ -5,31 +5,47 @@ import com.cnwv.game_server.dto.PlayerStatsDeltaRequest;
 import com.cnwv.game_server.dto.PlayerStatsResponse;
 import com.cnwv.game_server.dto.PlayerStatsUpdateRequest;
 import com.cnwv.game_server.repository.PlayerStatsRepository;
+import com.cnwv.game_server.repository.UserRepository;
+import com.cnwv.game_server.shard.WithUserShard;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
 public class PlayerStatsService {
 
     private final PlayerStatsRepository repo;
+    private final UserRepository userRepository;
+
+    private long getUserIdOr404(String username) {
+        return userRepository.findByUsername(username)
+                .map(u -> u.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
+    }
 
     /** 기본값 생성 또는 조회 */
+    @WithUserShard(userIdParam = "username")
     @Transactional
-    public PlayerStatsResponse getOrCreate(long userId) {
+    public PlayerStatsResponse getOrCreate(String username) {
+        long userId = getUserIdOr404(username);
         PlayerStats stats = repo.findById(userId).orElseGet(() -> {
             PlayerStats s = new PlayerStats();
             s.setUserId(userId);
+            // 기본값은 엔티티 필드 디폴트(100/10/...) 그대로 사용
             return repo.save(s);
         });
         return toDto(stats);
     }
 
     /** 전체/부분 필드 절대값 업데이트 (음수 방지 clamp) */
+    @WithUserShard(userIdParam = "username")
     @Transactional
-    public PlayerStatsResponse update(long userId, PlayerStatsUpdateRequest req) {
+    public PlayerStatsResponse update(String username, PlayerStatsUpdateRequest req) {
+        long userId = getUserIdOr404(username);
         PlayerStats stats = repo.findById(userId).orElseGet(() -> {
             PlayerStats s = new PlayerStats();
             s.setUserId(userId);
@@ -46,14 +62,15 @@ public class PlayerStatsService {
         try {
             return toDto(repo.save(stats));
         } catch (OptimisticLockException e) {
-            // 필요 시 재시도 전략(간단히 다시 조회 후 실패 응답 등) 추가
             throw e;
         }
     }
 
     /** 증감치(+, -) 적용 */
+    @WithUserShard(userIdParam = "username")
     @Transactional
-    public PlayerStatsResponse applyDelta(long userId, PlayerStatsDeltaRequest req) {
+    public PlayerStatsResponse applyDelta(String username, PlayerStatsDeltaRequest req) {
+        long userId = getUserIdOr404(username);
         PlayerStats stats = repo.findById(userId).orElseGet(() -> {
             PlayerStats s = new PlayerStats();
             s.setUserId(userId);
@@ -75,8 +92,6 @@ public class PlayerStatsService {
     }
 
     private int clampNonNegative(int v) { return Math.max(0, v); }
-
-    /** 퍼센트 필드는 0~100으로 제한 (원하면 상한 변경하세요) */
     private int clampPercent(int v) { return Math.max(0, Math.min(100, v)); }
 
     private PlayerStatsResponse toDto(PlayerStats s) {

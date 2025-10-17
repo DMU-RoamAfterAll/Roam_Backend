@@ -9,12 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 기본 베이스: /api/player-stats
- * - GET  /{userId}                : 조회(없으면 생성)
- * - PUT  /{userId}                : 절대값 업데이트(부분 허용)
- * - PATCH/{userId}                : 증감치 적용(+/-)
- */
 @RestController
 @RequestMapping("/api/player-stats")
 @RequiredArgsConstructor
@@ -22,25 +16,25 @@ public class PlayerStatsController {
 
     private final PlayerStatsService service;
 
-    @GetMapping("/{userId}")
+    @GetMapping("/{username}")
     @Operation(summary = "조회(없으면 생성)")
-    public ResponseEntity<PlayerStatsResponse> get(@PathVariable long userId) {
-        return ResponseEntity.ok(service.getOrCreate(userId));
+    public ResponseEntity<PlayerStatsResponse> get(@PathVariable String username) {
+        return ResponseEntity.ok(service.getOrCreate(username));
     }
 
-    @PutMapping("/{userId}")
+    @PutMapping("/{username}")
     @Operation(summary = "절대값 업데이트(부분 허용)")
     public ResponseEntity<PlayerStatsResponse> update(
-            @PathVariable long userId,
+            @PathVariable String username,
             @RequestBody PlayerStatsUpdateRequest req) {
-        return ResponseEntity.ok(service.update(userId, req));
+        return ResponseEntity.ok(service.update(username, req));
     }
 
-    @PatchMapping("/{userId}")
+    @PatchMapping("/{username}")
     @Operation(summary = "증감치 적용(+/-)")
     public ResponseEntity<PlayerStatsResponse> delta(
-            @PathVariable long userId,
+            @PathVariable String username,
             @RequestBody PlayerStatsDeltaRequest req) {
-        return ResponseEntity.ok(service.applyDelta(userId, req));
+        return ResponseEntity.ok(service.applyDelta(username, req));
     }
 }

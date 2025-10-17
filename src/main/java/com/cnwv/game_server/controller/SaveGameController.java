@@ -18,27 +18,27 @@ public class SaveGameController {
     private final SaveGameService saveGameService;
 
     @Operation(summary = "세이브 조회(없으면 404)")
-    @GetMapping("/{userId}")
-    public ResponseEntity<SaveGameResponse> get(@PathVariable Long userId) {
-        return ResponseEntity.ok(saveGameService.get(userId));
+    @GetMapping("/{username}")
+    public ResponseEntity<SaveGameResponse> get(@PathVariable String username) {
+        return ResponseEntity.ok(saveGameService.get(username));
     }
 
     @Operation(summary = "세이브 최초 생성(이미 있으면 409)")
-    @PostMapping("/{userId}")
+    @PostMapping("/{username}")
     public ResponseEntity<SaveGameResponse> create(
-            @PathVariable Long userId,
+            @PathVariable String username,
             @RequestBody SaveGameRequest request
     ) {
-        var resp = saveGameService.create(userId, request);
-        return ResponseEntity.created(URI.create("/api/save/" + userId)).body(resp);
+        var resp = saveGameService.create(username, request);
+        return ResponseEntity.created(URI.create("/api/save/" + username)).body(resp);
     }
 
     @Operation(summary = "세이브 전체 저장(업서트)")
-    @PutMapping("/{userId}")
+    @PutMapping("/{username}")
     public ResponseEntity<SaveGameResponse> upsert(
-            @PathVariable Long userId,
+            @PathVariable String username,
             @RequestBody SaveGameRequest request
     ) {
-        return ResponseEntity.ok(saveGameService.upsert(userId, request));
+        return ResponseEntity.ok(saveGameService.upsert(username, request));
     }
 }
