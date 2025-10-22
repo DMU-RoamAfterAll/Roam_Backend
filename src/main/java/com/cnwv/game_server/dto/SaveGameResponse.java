@@ -1,6 +1,5 @@
 package com.cnwv.game_server.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 

@@ -4,7 +4,6 @@ import com.cnwv.game_server.jwt.JwtUtil;
 import com.cnwv.game_server.repository.FriendRepository;
 import com.cnwv.game_server.repository.UserRepository;
 import com.cnwv.game_server.service.RedisService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
