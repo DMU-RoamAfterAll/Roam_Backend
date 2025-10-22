@@ -28,9 +28,9 @@ public class PlayerSkillController {
             description = "존재하지 않으면 생성, 존재하면 skill_level += delta")
     @ApiResponse(responseCode = "200", description = "성공/실패 문자열")
     public ResponseEntity<?> addOrIncrease(
-            @Parameter(description = "유저명", example = "alice")
+            @Parameter(description = "유저명", example = "cnwvid")
             @RequestParam String username,
-            @Parameter(description = "스킬 코드", example = "FIREBALL")
+            @Parameter(description = "스킬 코드", example = "skill_code001")
             @RequestParam String skillCode,
             @Parameter(description = "증가치(양수)", example = "1")
             @RequestParam int delta
@@ -46,7 +46,7 @@ public class PlayerSkillController {
     @ApiResponse(responseCode = "200",
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = SkillDataResponse.class))))
     public ResponseEntity<List<SkillDataResponse>> list(
-            @Parameter(description = "유저명", example = "alice")
+            @Parameter(description = "유저명", example = "cnwvid")
             @RequestParam String username
     ) {
         return ResponseEntity.ok(service.getSkills(username));
