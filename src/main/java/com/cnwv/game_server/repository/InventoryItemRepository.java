@@ -54,4 +54,8 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, In
             nativeQuery = true)
     int deleteIfZeroOrLess(@Param("invId") Long invId,
                            @Param("code") String itemCode);
+
+    @Modifying
+    @Query("delete from InventoryItem i where i.id.inventoryId = :invId")
+    void deleteByInventoryId(@Param("invId") Long inventoryId);
 }

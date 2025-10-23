@@ -53,4 +53,8 @@ public interface PlayerSkillRepository extends JpaRepository<PlayerSkill, Player
         """, nativeQuery = true)
     int deleteIfZeroOrLess(@Param("userId") Long userId,
                            @Param("skillCode") String skillCode);
+
+    @Modifying
+    @Query("DELETE FROM player_skills f WHERE f.id.userId = :userId")
+    void deleteByUserId(Long userId);
 }

@@ -29,7 +29,7 @@ public class SaveGameRequest {
     @Schema(example = "")
     private String preSectionId;
 
-    @Schema(example = "true")
+    @Schema(example = "false")
     private Boolean tutorialClear;
 
     @Schema(example = "[\"sec-1\",\"sec-2\"]")
