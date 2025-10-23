@@ -55,6 +55,6 @@ public interface PlayerSkillRepository extends JpaRepository<PlayerSkill, Player
                            @Param("skillCode") String skillCode);
 
     @Modifying
-    @Query("DELETE FROM player_skills f WHERE f.id.userId = :userId")
+    @Query("DELETE FROM PlayerSkill f WHERE f.id.userId = :userId")
     void deleteByUserId(Long userId);
 }
