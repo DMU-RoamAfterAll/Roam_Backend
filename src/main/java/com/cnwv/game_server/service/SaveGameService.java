@@ -43,27 +43,25 @@ public class SaveGameService {
         PlayerSave save = saveRepo.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "save not found"));
 
-        var visited = visitedRepo.findByIdUserId(userId);
-        var visitedIds = visited.stream().map(v -> v.getId().getSectionId()).toList();
+        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
+                .map(v -> v.getId().getSectionId())
+                .toList();
+
         return toResponse(save, visitedIds);
     }
 
-    /** 최초 생성(이미 있으면 409) */
     @WithUserShard(userIdParam = "username")
     @Transactional
     public SaveGameResponse create(String username, SaveGameRequest req) {
         Long userId = getUserIdOr404(username);
-
-        if (saveRepo.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "save already exists");
-        }
+        if (saveRepo.existsById(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "save already exists");
 
         PlayerSave s = new PlayerSave();
         s.setUserId(userId);
 
+        // 기본 필드 세팅
         s.setPlayerName(nvl(req.getPlayerName(), "Player"));
         s.setOriginSeed(nvl(req.getOriginSeed(), 0));
-
         if (req.getPlayerPos() != null) {
             s.setPosX(nvl(req.getPlayerPos().getX(), 0d));
             s.setPosY(nvl(req.getPlayerPos().getY(), 0d));
@@ -71,35 +69,38 @@ public class SaveGameService {
         } else {
             s.setPosX(0); s.setPosY(0); s.setPosZ(0);
         }
-
         s.setCurrentSectionId(nvl(req.getCurrentSectionId(), ""));
         s.setPreSectionId(nvl(req.getPreSectionId(), ""));
         s.setTutorialClear(nvl(req.getTutorialClear(), true));
 
+        // ✅ clearedSectionIds 반영
+        if (req.getClearedSectionIds() != null) {
+            s.setClearedSectionIds(req.getClearedSectionIds().stream()
+                    .filter(str -> str != null && !str.isBlank()).toList());
+        } else {
+            s.setClearedSectionIds(List.of());
+        }
+
         s = saveRepo.save(s);
 
-        // 방문 섹션 저장
+        // 방문 섹션 저장(기존 로직 유지)
         List<String> list = req.getVisitedSectionIds();
         if (list != null && !list.isEmpty()) {
             List<PlayerVisitedSection> bulk = new ArrayList<>(list.size());
             for (String sec : list) {
                 if (sec == null || sec.isBlank()) continue;
-                bulk.add(new PlayerVisitedSection(
-                        new PlayerVisitedSection.Id(userId, sec),
-                        null
-                ));
+                bulk.add(new PlayerVisitedSection(new PlayerVisitedSection.Id(userId, sec), null));
             }
             if (!bulk.isEmpty()) {
                 try { visitedRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
             }
         }
 
-        var visited = visitedRepo.findByIdUserId(userId);
-        var visitedIds = visited.stream().map(v -> v.getId().getSectionId()).toList();
+        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
+                .map(v -> v.getId().getSectionId()).toList();
         return toResponse(s, visitedIds);
     }
 
-    /** 전체 저장(업서트: 없으면 생성) */
     @WithUserShard(userIdParam = "username")
     @Transactional
     public SaveGameResponse upsert(String username, SaveGameRequest req) {
@@ -112,36 +113,39 @@ public class SaveGameService {
             return s;
         });
 
-        // 기존 row가 있을 때만 버전 체크
         if (existed && req.getVersion() != null && req.getVersion() != save.getVersion()) {
             throw new OptimisticLockException("Version mismatch");
         }
 
+        // 기본 필드 upsert
         save.setPlayerName(nvl(req.getPlayerName(), save.getPlayerName() == null ? "Player" : save.getPlayerName()));
         save.setOriginSeed(nvl(req.getOriginSeed(), save.getOriginSeed()));
-
         if (req.getPlayerPos() != null) {
             save.setPosX(nvl(req.getPlayerPos().getX(), save.getPosX()));
             save.setPosY(nvl(req.getPlayerPos().getY(), save.getPosY()));
             save.setPosZ(nvl(req.getPlayerPos().getZ(), save.getPosZ()));
         }
-
         save.setCurrentSectionId(nvl(req.getCurrentSectionId(), save.getCurrentSectionId() == null ? "" : save.getCurrentSectionId()));
         save.setPreSectionId(nvl(req.getPreSectionId(), save.getPreSectionId() == null ? "" : save.getPreSectionId()));
         save.setTutorialClear(nvl(req.getTutorialClear(), save.isTutorialClear()));
 
+        // ✅ clearedSectionIds 전체 교체(요청이 온 경우에만)
+        if (req.getClearedSectionIds() != null) {
+            var normalized = req.getClearedSectionIds().stream()
+                    .filter(str -> str != null && !str.isBlank()).toList();
+            save.setClearedSectionIds(normalized);
+        }
+
         save = saveRepo.save(save);
 
+        // 방문 섹션 전체 교체(요청이 온 경우에만)
         if (req.getVisitedSectionIds() != null) {
             visitedRepo.deleteByIdUserId(userId);
             if (!req.getVisitedSectionIds().isEmpty()) {
                 List<PlayerVisitedSection> bulk = new ArrayList<>(req.getVisitedSectionIds().size());
                 for (String sec : req.getVisitedSectionIds()) {
                     if (sec == null || sec.isBlank()) continue;
-                    bulk.add(new PlayerVisitedSection(
-                            new PlayerVisitedSection.Id(userId, sec),
-                            null
-                    ));
+                    bulk.add(new PlayerVisitedSection(new PlayerVisitedSection.Id(userId, sec), null));
                 }
                 if (!bulk.isEmpty()) {
                     try { visitedRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
@@ -149,8 +153,8 @@ public class SaveGameService {
             }
         }
 
-        var visited = visitedRepo.findByIdUserId(userId);
-        var visitedIds = visited.stream().map(v -> v.getId().getSectionId()).toList();
+        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
+                .map(v -> v.getId().getSectionId()).toList();
         return toResponse(save, visitedIds);
     }
 
@@ -164,6 +168,8 @@ public class SaveGameService {
                 .preSectionId(s.getPreSectionId())
                 .tutorialClear(s.isTutorialClear())
                 .visitedSectionIds(visited == null ? List.of() : visited)
+                /** ✅ 응답에도 그대로 포함 */
+                .clearedSectionIds(s.getClearedSectionIds() == null ? List.of() : s.getClearedSectionIds())
                 .version(s.getVersion())
                 .build();
     }

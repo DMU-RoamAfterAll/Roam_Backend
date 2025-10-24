@@ -16,11 +16,11 @@ public class SaveGameRequest {
     private Integer originSeed;
 
     @Getter @Setter
-    public static class PlayerPos {
-        @Schema(example = "0.0") private Double x;
-        @Schema(example = "4.0") private Double y;
-        @Schema(example = "0.0") private Double z;
-    }
+        public static class PlayerPos {
+            @Schema(example = "0.0") private Double x;
+            @Schema(example = "4.0") private Double y;
+            @Schema(example = "0.0") private Double z;
+        }
     private PlayerPos playerPos;
 
     @Schema(example = "")
@@ -29,11 +29,14 @@ public class SaveGameRequest {
     @Schema(example = "")
     private String preSectionId;
 
-    @Schema(example = "false")
+    @Schema(example = "true")
     private Boolean tutorialClear;
 
     @Schema(example = "[\"sec-1\",\"sec-2\"]")
     private List<String> visitedSectionIds;
+
+    @Schema(example = "[\"sec-1\",\"sec-2\"]")
+    private List<String> clearedSectionIds;
 
     // 선택: 낙관적 락 버전 검증용(없으면 무시)
     private Long version;

@@ -24,6 +24,7 @@ public class SaveGameResponse {
     private String preSectionId;
     private Boolean tutorialClear;
     private List<String> visitedSectionIds;
+    private List<String> clearedSectionIds;
 
     /** 서버측 낙관적 락 버전 */
     private Long version;

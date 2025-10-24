@@ -1,5 +1,6 @@
 package com.cnwv.game_server.Entity;
 
+import com.cnwv.game_server.jpa.StringListJsonConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "player_saves")
@@ -17,7 +19,7 @@ public class PlayerSave {
 
     @Id
     @Column(name = "user_id")
-    private Long userId; // users.id 와 1:1
+    private Long userId;
 
     @Column(name = "player_name", nullable = false, length = 100)
     private String playerName;
@@ -43,6 +45,10 @@ public class PlayerSave {
     @Column(name = "tutorial_clear", nullable = false)
     private boolean tutorialClear = false;
 
+    @Convert(converter = StringListJsonConverter.class)
+    @Column(name = "cleared_section_ids", columnDefinition = "TEXT")
+    private List<String> clearedSectionIds = List.of();
+
     @Version
     @Column(name = "version", nullable = false)
     private long version;
@@ -50,6 +56,7 @@ public class PlayerSave {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
