@@ -25,6 +25,7 @@ public class SaveGameResponse {
     private Boolean tutorialClear;
     private List<String> visitedSectionIds;
     private List<String> clearedSectionIds;
+    private List<String> canMoveSectionIds;
 
     /** 서버측 낙관적 락 버전 */
     private Long version;

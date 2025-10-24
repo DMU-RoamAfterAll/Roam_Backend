@@ -38,6 +38,9 @@ public class SaveGameRequest {
     @Schema(example = "[\"sec-1\",\"sec-2\"]")
     private List<String> clearedSectionIds;
 
+    @Schema(example = "")
+    private List<String> canMoveSectionIds;
+
     // 선택: 낙관적 락 버전 검증용(없으면 무시)
     private Long version;
 }

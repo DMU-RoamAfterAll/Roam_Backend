@@ -2,10 +2,12 @@ package com.cnwv.game_server.service;
 
 import com.cnwv.game_server.Entity.PlayerSave;
 import com.cnwv.game_server.Entity.PlayerVisitedSection;
+import com.cnwv.game_server.Entity.PlayerCanMoveSection;
 import com.cnwv.game_server.dto.SaveGameRequest;
 import com.cnwv.game_server.dto.SaveGameResponse;
 import com.cnwv.game_server.repository.PlayerSaveRepository;
 import com.cnwv.game_server.repository.PlayerVisitedSectionRepository;
+import com.cnwv.game_server.repository.PlayerCanMoveSectionRepository; // 🆕
 import com.cnwv.game_server.repository.UserRepository;
 import com.cnwv.game_server.shard.WithUserShard;
 import jakarta.persistence.OptimisticLockException;
@@ -25,16 +27,15 @@ public class SaveGameService {
 
     private final PlayerSaveRepository saveRepo;
     private final PlayerVisitedSectionRepository visitedRepo;
+    private final PlayerCanMoveSectionRepository canMoveRepo; // 🆕
     private final UserRepository userRepository;
 
-    /** username → userId(Long) 조회 (없으면 404) */
     private Long getUserIdOr404(String username) {
         return userRepository.findByUsername(username)
                 .map(u -> u.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
     }
 
-    /** 조회(없으면 404) */
     @WithUserShard(userIdParam = "username")
     @Transactional(readOnly = true)
     public SaveGameResponse get(String username) {
@@ -43,62 +44,36 @@ public class SaveGameService {
         PlayerSave save = saveRepo.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "save not found"));
 
-        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
-                .map(v -> v.getId().getSectionId())
-                .toList();
+        var visited = visitedRepo.findByIdUserId(userId);
+        var visitedIds = visited.stream().map(v -> v.getId().getSectionId()).toList();
 
-        return toResponse(save, visitedIds);
+        var canMoves = canMoveRepo.findByIdUserId(userId); // 🆕
+        var canMoveIds = canMoves.stream().map(c -> c.getId().getSectionId()).toList();
+
+        return toResponse(save, visitedIds, canMoveIds);
     }
 
     @WithUserShard(userIdParam = "username")
     @Transactional
     public SaveGameResponse create(String username, SaveGameRequest req) {
         Long userId = getUserIdOr404(username);
-        if (saveRepo.existsById(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "save already exists");
+        if (saveRepo.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "save already exists");
+        }
 
         PlayerSave s = new PlayerSave();
         s.setUserId(userId);
-
-        // 기본 필드 세팅
-        s.setPlayerName(nvl(req.getPlayerName(), "Player"));
-        s.setOriginSeed(nvl(req.getOriginSeed(), 0));
-        if (req.getPlayerPos() != null) {
-            s.setPosX(nvl(req.getPlayerPos().getX(), 0d));
-            s.setPosY(nvl(req.getPlayerPos().getY(), 0d));
-            s.setPosZ(nvl(req.getPlayerPos().getZ(), 0d));
-        } else {
-            s.setPosX(0); s.setPosY(0); s.setPosZ(0);
-        }
-        s.setCurrentSectionId(nvl(req.getCurrentSectionId(), ""));
-        s.setPreSectionId(nvl(req.getPreSectionId(), ""));
-        s.setTutorialClear(nvl(req.getTutorialClear(), true));
-
-        // ✅ clearedSectionIds 반영
-        if (req.getClearedSectionIds() != null) {
-            s.setClearedSectionIds(req.getClearedSectionIds().stream()
-                    .filter(str -> str != null && !str.isBlank()).toList());
-        } else {
-            s.setClearedSectionIds(List.of());
-        }
-
         s = saveRepo.save(s);
 
-        // 방문 섹션 저장(기존 로직 유지)
-        List<String> list = req.getVisitedSectionIds();
-        if (list != null && !list.isEmpty()) {
-            List<PlayerVisitedSection> bulk = new ArrayList<>(list.size());
-            for (String sec : list) {
-                if (sec == null || sec.isBlank()) continue;
-                bulk.add(new PlayerVisitedSection(new PlayerVisitedSection.Id(userId, sec), null));
-            }
-            if (!bulk.isEmpty()) {
-                try { visitedRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
-            }
-        }
+        // 방문 섹션
+        saveVisitedList(userId, req.getVisitedSectionIds());
 
-        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
-                .map(v -> v.getId().getSectionId()).toList();
-        return toResponse(s, visitedIds);
+        // 이동 가능 섹션
+        saveCanMoveList(userId, req.getCanMoveSectionIds());
+
+        var visitedIds = visitedRepo.findByIdUserId(userId).stream().map(v -> v.getId().getSectionId()).toList();
+        var canMoveIds = canMoveRepo.findByIdUserId(userId).stream().map(c -> c.getId().getSectionId()).toList();
+        return toResponse(s, visitedIds, canMoveIds);
     }
 
     @WithUserShard(userIdParam = "username")
@@ -117,48 +92,54 @@ public class SaveGameService {
             throw new OptimisticLockException("Version mismatch");
         }
 
-        // 기본 필드 upsert
-        save.setPlayerName(nvl(req.getPlayerName(), save.getPlayerName() == null ? "Player" : save.getPlayerName()));
-        save.setOriginSeed(nvl(req.getOriginSeed(), save.getOriginSeed()));
-        if (req.getPlayerPos() != null) {
-            save.setPosX(nvl(req.getPlayerPos().getX(), save.getPosX()));
-            save.setPosY(nvl(req.getPlayerPos().getY(), save.getPosY()));
-            save.setPosZ(nvl(req.getPlayerPos().getZ(), save.getPosZ()));
-        }
-        save.setCurrentSectionId(nvl(req.getCurrentSectionId(), save.getCurrentSectionId() == null ? "" : save.getCurrentSectionId()));
-        save.setPreSectionId(nvl(req.getPreSectionId(), save.getPreSectionId() == null ? "" : save.getPreSectionId()));
-        save.setTutorialClear(nvl(req.getTutorialClear(), save.isTutorialClear()));
-
-        // ✅ clearedSectionIds 전체 교체(요청이 온 경우에만)
-        if (req.getClearedSectionIds() != null) {
-            var normalized = req.getClearedSectionIds().stream()
-                    .filter(str -> str != null && !str.isBlank()).toList();
-            save.setClearedSectionIds(normalized);
-        }
-
         save = saveRepo.save(save);
 
-        // 방문 섹션 전체 교체(요청이 온 경우에만)
+        // 방문 섹션 리스트가 요청에 있으면 전체 교체
         if (req.getVisitedSectionIds() != null) {
             visitedRepo.deleteByIdUserId(userId);
-            if (!req.getVisitedSectionIds().isEmpty()) {
-                List<PlayerVisitedSection> bulk = new ArrayList<>(req.getVisitedSectionIds().size());
-                for (String sec : req.getVisitedSectionIds()) {
-                    if (sec == null || sec.isBlank()) continue;
-                    bulk.add(new PlayerVisitedSection(new PlayerVisitedSection.Id(userId, sec), null));
-                }
-                if (!bulk.isEmpty()) {
-                    try { visitedRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
-                }
-            }
+            saveVisitedList(userId, req.getVisitedSectionIds());
         }
 
-        var visitedIds = visitedRepo.findByIdUserId(userId).stream()
-                .map(v -> v.getId().getSectionId()).toList();
-        return toResponse(save, visitedIds);
+        // canMove 리스트가 요청에 있으면 전체 교체
+        if (req.getCanMoveSectionIds() != null) {
+            canMoveRepo.deleteByIdUserId(userId);
+            saveCanMoveList(userId, req.getCanMoveSectionIds());
+        }
+
+        var visitedIds = visitedRepo.findByIdUserId(userId).stream().map(v -> v.getId().getSectionId()).toList();
+        var canMoveIds = canMoveRepo.findByIdUserId(userId).stream().map(c -> c.getId().getSectionId()).toList();
+        return toResponse(save, visitedIds, canMoveIds);
     }
 
-    private SaveGameResponse toResponse(PlayerSave s, List<String> visited) {
+    private void saveVisitedList(Long userId, List<String> list) {
+        if (list == null || list.isEmpty()) return;
+        List<PlayerVisitedSection> bulk = new ArrayList<>(list.size());
+        for (String sec : list) {
+            if (sec == null || sec.isBlank()) continue;
+            bulk.add(new PlayerVisitedSection(
+                    new PlayerVisitedSection.Id(userId, sec), null
+            ));
+        }
+        if (!bulk.isEmpty()) {
+            try { visitedRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
+        }
+    }
+
+    private void saveCanMoveList(Long userId, List<String> list) { // 🆕
+        if (list == null || list.isEmpty()) return;
+        List<PlayerCanMoveSection> bulk = new ArrayList<>(list.size());
+        for (String sec : list) {
+            if (sec == null || sec.isBlank()) continue;
+            bulk.add(new PlayerCanMoveSection(
+                    new PlayerCanMoveSection.Id(userId, sec), null
+            ));
+        }
+        if (!bulk.isEmpty()) {
+            try { canMoveRepo.saveAll(bulk); } catch (DataIntegrityViolationException ignore) {}
+        }
+    }
+
+    private SaveGameResponse toResponse(PlayerSave s, List<String> visited, List<String> canMove) { // 🆕
         return SaveGameResponse.builder()
                 .playerName(s.getPlayerName())
                 .originSeed(s.getOriginSeed())
@@ -168,8 +149,7 @@ public class SaveGameService {
                 .preSectionId(s.getPreSectionId())
                 .tutorialClear(s.isTutorialClear())
                 .visitedSectionIds(visited == null ? List.of() : visited)
-                /** ✅ 응답에도 그대로 포함 */
-                .clearedSectionIds(s.getClearedSectionIds() == null ? List.of() : s.getClearedSectionIds())
+                .canMoveSectionIds(canMove == null ? List.of() : canMove) // 🆕
                 .version(s.getVersion())
                 .build();
     }
