@@ -18,7 +18,7 @@ public class GameResetController {
     private final GameResetService resetService;
 
     @PostMapping("/hard")
-    @Operation(summary = "완전 초기화(삭제만)", description = "세이브/스탯/인벤토리/무기/아이템/플래그/스킬 등 진행 데이터 전부 삭제")
+    @Operation(summary = "완전 초기화(삭제만)", description = "스탯/인벤토리/무기/아이템/플래그/스킬 등 진행 데이터 전부 삭제")
     public ResponseEntity<Void> hardReset(@RequestParam String username) {
         resetService.hardReset(username);
         return ResponseEntity.noContent().build(); // 204

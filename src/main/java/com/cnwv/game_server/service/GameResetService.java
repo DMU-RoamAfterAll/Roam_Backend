@@ -37,7 +37,7 @@ public class GameResetService {
         visitedSectionRepository.deleteByIdUserId(userId);
 
         // 2) 세이브
-        playerSaveRepository.deleteById(userId);
+        // playerSaveRepository.deleteById(userId);
 
         // 3) 스탯
         playerStatsRepository.deleteById(userId);
